@@ -2,7 +2,11 @@ library(ggplot2)
 library(dplyr)
 library(readr)
 library(gridExtra)
-
+library(tree)
+library(MLmetrics)
+library(stats)
+library(class)
+        
 #--------------------------------------------------------------
 #Passo 1 -  LIMPEZA DE DADOS
 #--------------------------------------------------------------
@@ -50,7 +54,7 @@ data_nivel_0 <- data %>%
 count_repeated_sequences <- function(coluna, repeticao) {
   contador_total <- 0
   contador_sequencia <- 1
-  
+
   for (i in 2:length(coluna)) {
     if (coluna[i] == coluna[i - 1]) {
       contador_sequencia <- contador_sequencia + 1
@@ -61,7 +65,7 @@ count_repeated_sequences <- function(coluna, repeticao) {
       contador_sequencia <- 1
     }
   }
-  
+
   return(contador_total)
 }
 
@@ -71,11 +75,11 @@ porcentagem_nivel_0 <- c()
 
 # Calculando a diferença de repetição entre os niveis de invasão
 for (repeticao in repeticoes) {
-  
+
   # Contar sequências repetidas
   contador_total_nivel_1 <- count_repeated_sequences(data_nivel_1$rssi, repeticao)
   contador_total_nivel_0 <- count_repeated_sequences(data_nivel_0$rssi, repeticao)
-  
+
   # Calcula porcentagem e relação
   porcentagem_1 <- (contador_total_nivel_1 / qtd_nivel_1) * 100
   porcentagem_0 <- (contador_total_nivel_0 / qtd_nivel_0) * 100
@@ -107,7 +111,7 @@ p + geom_text(aes(y = porcentagem_nivel_1, label = format_porcentagem(porcentage
 #--------------------------------------------------------------
 
 melhor_repetição <- which.max(porcentagem_nivel_0) + 1
-cols <- c("last_rssi_1", "last_rssi_2", "last_rssi_3", "last_rssi_4", "last_rssi_5", "last_rssi_6", 
+cols <- c("last_rssi_1", "last_rssi_2", "last_rssi_3", "last_rssi_4", "last_rssi_5", "last_rssi_6",
           "last_rssi_7","last_rssi_8","last_rssi_9","last_rssi_10")
 
 # Captação dos ultimos valores de RSSI para verificação de invasões
@@ -178,24 +182,102 @@ ggplot(data, aes(x = factor(nivel_invasao), fill = factor(resultado))) +
 
 
 #--------------------------------------------------------------
-#Passo 3 -  EXPLORAÇÃO DE DADOS PARA ML
+#Passo 4 -  EXPLORAÇÃO DE DADOS PARA ML
 #--------------------------------------------------------------
-
-# Criação da coluna de ordem
-data <- data %>% mutate(count = 1:n())
-
 # Organizando colunas
 data <- data %>%
-  select(count, tempo, amostragem, distancia, rssi, last_rssi_1, last_rssi_2, last_rssi_3, 
+  select(tempo, amostragem, distancia, rssi, last_rssi_1, last_rssi_2, last_rssi_3,
          last_rssi_4, last_rssi_5, last_rssi_6, last_rssi_7, last_rssi_8, last_rssi_9,
-         last_rssi_10, nivel_invasao, resultado)
+         last_rssi_10, resultado, nivel_invasao)
+
+# Padronização
+#data$distancia <- (data$distancia - min(data$distancia)) / (max(data$distancia) - min(data$distancia))
+#data$rssi <- (data$rssi - mean(data$rssi)) / sd(data$rssi)
+#data$last_rssi_1 <- (data$last_rssi_1 - mean(data$last_rssi_1)) / sd(data$last_rssi_1)
+#data$last_rssi_2 <- (data$last_rssi_2 - mean(data$last_rssi_2)) / sd(data$last_rssi_2)
+#data$last_rssi_3 <- (data$last_rssi_3 - mean(data$last_rssi_3)) / sd(data$last_rssi_3)
+#data$last_rssi_4 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_4)
+#data$last_rssi_5 <- (data$last_rssi_5 - mean(data$last_rssi_5)) / sd(data$last_rssi_5)
+#data$last_rssi_6 <- (data$last_rssi_6 - mean(data$last_rssi_6)) / sd(data$last_rssi_6)
+#data$last_rssi_7 <- (data$last_rssi_7 - mean(data$last_rssi_7)) / sd(data$last_rssi_7)
+#data$last_rssi_8 <- (data$last_rssi_8 - mean(data$last_rssi_8)) / sd(data$last_rssi_8)
+#data$last_rssi_9 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_9)
+#data$last_rssi_10 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_10)
 
 # Eliminação de atributos não necessários
 data$amostragem <- NULL
 data$tempo <- NULL
 
+# Definir as proporções de teste e treinamento
+prop_test <- 0.2
+prop_train <- 0.8
 
-## Normalização
+# Calcular o tamanho das amostras
+size_test <- round(nrow(data) * prop_test)
+size_train <- nrow(data) - size_test
 
-# Padronização
-# RE-escala
+# Criar amostras aleatórias para teste e treinamento
+indices <- sample(seq_len(nrow(data)), size = size_train + size_test)
+indices_train <- indices[1:size_train]
+indices_test <- indices[(size_train + 1):(size_train + size_test)]
+
+# Dividir os dados 
+test <- data[indices_test, ]
+train <- data[indices_train, ]
+
+# Indução do Modelo
+
+########################################## TREE ############################################
+#Indução do Modelo
+model_tree <- tree(nivel_invasao ~ ., data = train)
+
+# Fazer previsões no conjunto de teste
+predVal_tree <- predict(model_tree, newdata = test)
+predVal_classes <- as.integer(predVal_tree)
+
+# Criação da Matriz de Confusão
+cm <-  MLmetrics::ConfusionMatrix(y_pred = predVal_classes, y_true = test$nivel_invasao)
+matriz_tree = as.data.frame.matrix(cm)
+somatorio_diagonal_principal = sum(diag(cm))
+somatorio_matriz = sum(cm)
+acuracia_tree = somatorio_diagonal_principal/somatorio_matriz
+print("Matriz de confusão Tree:")
+print(matriz_tree)
+print("Acurácia tree:")
+print(acuracia_tree)
+
+######################################### KNN ##############################################
+melhor_matriz <- NULL
+melhor_k <- 1
+melhor_acuracia <- 0
+k_knn <- 1
+
+#Laço de repetição da variação do K no Knn, K varia entre numeros impares
+for(j in 1:10){
+  #Indução do Modelo
+  x <- data.frame (train, y = as.factor(train$nivel_invasao))
+  model <- class::knn(train = train, test = test, cl = train$nivel_invasao, k = k_knn)
+  predsVal <- as.numeric(as.character(model))
+  
+  #Criação da Matriz de Confusão
+  cm1 <- MLmetrics::ConfusionMatrix(y_pred = predsVal, y_true = test$nivel_invasao)
+  matriz = as.data.frame.matrix(cm1)
+  
+  #Cálculo da acurácia
+  somatorio_diagonal_principal = sum(diag(cm1))
+  somatorio_matriz = sum(cm1)
+  acuracia_knn = somatorio_diagonal_principal/somatorio_matriz
+  if(acuracia_knn > melhor_acuracia){
+    melhor_acuracia = acuracia_knn
+    melhor_matriz <- matriz
+    melhor_k <- k_knn
+  }
+  k_knn  = k_knn + 2
+}
+
+print("Melhor matriz de confusão KNN:")
+print(melhor_matriz)
+print("Melhor acurácia KNN:")
+print(melhor_acuracia)
+print("Melhor K KNN:")
+print(melhor_k)
