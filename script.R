@@ -190,19 +190,12 @@ data <- data %>%
          last_rssi_4, last_rssi_5, last_rssi_6, last_rssi_7, last_rssi_8, last_rssi_9,
          last_rssi_10, resultado, nivel_invasao)
 
-# Padronização
-#data$distancia <- (data$distancia - min(data$distancia)) / (max(data$distancia) - min(data$distancia))
-#data$rssi <- (data$rssi - mean(data$rssi)) / sd(data$rssi)
-#data$last_rssi_1 <- (data$last_rssi_1 - mean(data$last_rssi_1)) / sd(data$last_rssi_1)
-#data$last_rssi_2 <- (data$last_rssi_2 - mean(data$last_rssi_2)) / sd(data$last_rssi_2)
-#data$last_rssi_3 <- (data$last_rssi_3 - mean(data$last_rssi_3)) / sd(data$last_rssi_3)
-#data$last_rssi_4 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_4)
-#data$last_rssi_5 <- (data$last_rssi_5 - mean(data$last_rssi_5)) / sd(data$last_rssi_5)
-#data$last_rssi_6 <- (data$last_rssi_6 - mean(data$last_rssi_6)) / sd(data$last_rssi_6)
-#data$last_rssi_7 <- (data$last_rssi_7 - mean(data$last_rssi_7)) / sd(data$last_rssi_7)
-#data$last_rssi_8 <- (data$last_rssi_8 - mean(data$last_rssi_8)) / sd(data$last_rssi_8)
-#data$last_rssi_9 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_9)
-#data$last_rssi_10 <- (data$last_rssi_4 - mean(data$last_rssi_4)) / sd(data$last_rssi_10)
+# Normalização
+data$distancia <- (data$distancia - min(data$distancia)) / (max(data$distancia) - min(data$distancia))
+data$rssi <- (data$rssi - min(data$rssi)) / (max(data$rssi) - min(data$rssi))
+last_rssi_columns <- paste0("last_rssi_", 1:10)
+data <- data %>%
+  mutate(across(all_of(last_rssi_columns), ~ (. - min(.)) / (max(.) - min(.))))
 
 # Eliminação de atributos não necessários
 data$amostragem <- NULL
@@ -224,8 +217,6 @@ indices_test <- indices[(size_train + 1):(size_train + size_test)]
 # Dividir os dados 
 test <- data[indices_test, ]
 train <- data[indices_train, ]
-
-# Indução do Modelo
 
 ########################################## TREE ############################################
 #Indução do Modelo
@@ -281,3 +272,6 @@ print("Melhor acurácia KNN:")
 print(melhor_acuracia)
 print("Melhor K KNN:")
 print(melhor_k)
+
+#######################################################################################
+
