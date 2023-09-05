@@ -6,7 +6,7 @@ library(tree)
 library(MLmetrics)
 library(stats)
 library(class)
-        
+
 #--------------------------------------------------------------
 #Passo 1 -  LIMPEZA DE DADOS
 #--------------------------------------------------------------
@@ -214,7 +214,7 @@ indices <- sample(seq_len(nrow(data)), size = size_train + size_test)
 indices_train <- indices[1:size_train]
 indices_test <- indices[(size_train + 1):(size_train + size_test)]
 
-# Dividir os dados 
+# Dividir os dados
 test <- data[indices_test, ]
 train <- data[indices_train, ]
 
@@ -243,17 +243,20 @@ melhor_k <- 1
 melhor_acuracia <- 0
 k_knn <- 1
 
+
+train_sem_resposta <- train[, -which(names(train) == "nivel_invasao")]
+test_sem_resposta <- test[, -which(names(test) == "nivel_invasao")]
+
 #Laço de repetição da variação do K no Knn, K varia entre numeros impares
 for(j in 1:10){
   #Indução do Modelo
-  x <- data.frame (train, y = as.factor(train$nivel_invasao))
-  model <- class::knn(train = train, test = test, cl = train$nivel_invasao, k = k_knn)
+  model <- class::knn(train = train_sem_resposta, test = test_sem_resposta, cl = train$nivel_invasao, k = k_knn)
   predsVal <- as.numeric(as.character(model))
-  
+
   #Criação da Matriz de Confusão
   cm1 <- MLmetrics::ConfusionMatrix(y_pred = predsVal, y_true = test$nivel_invasao)
   matriz = as.data.frame.matrix(cm1)
-  
+
   #Cálculo da acurácia
   somatorio_diagonal_principal = sum(diag(cm1))
   somatorio_matriz = sum(cm1)
@@ -273,5 +276,7 @@ print(melhor_acuracia)
 print("Melhor K KNN:")
 print(melhor_k)
 
-#######################################################################################
+write.csv(train, file = "train.csv", row.names = FALSE)
+write.csv(train_sem_resposta, file = "train_sem_resposta.csv", row.names = FALSE)
 
+#######################################################################################
