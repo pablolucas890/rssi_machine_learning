@@ -1,31 +1,54 @@
 library(readr)
 library(dplyr)
 
-novo_dado <- data.frame(
-  distancia = 0,
-  rssi = 0.607843137254902,
-  last_rssi_1 = 0.725490196078431,
-  last_rssi_2 = 0.647058823529412,
-  last_rssi_3 = 0.705882352941177,
-  last_rssi_4 = 0.705882352941177,
-  last_rssi_5 = 0.686274509803922,
-  last_rssi_6 = 0.745098039215686,
-  last_rssi_7 = 0.764705882352941,
-  last_rssi_8 = 0.745098039215686,
-  last_rssi_9 = 0.92156862745098,
-  last_rssi_10 = 0.882352941176471,
-  resultado = 0
-)
+melhor_repetição <- 4
+melhor_k <- 3
+min_rssi <- -81
+max_rssi <- -30
 
+train_model <- read_csv("train_model.csv")
+result <- read_csv("result.csv")$x
 
-train_sem_resposta <- read_csv("train_sem_resposta.csv")
-train <- read_csv("train.csv")
+data <- read_csv("real_time.csv")
+cols <- c("last_rssi_1", "last_rssi_2", "last_rssi_3", "last_rssi_4", "last_rssi_5", "last_rssi_6",
+          "last_rssi_7","last_rssi_8","last_rssi_9","last_rssi_10")
+
+data <- data %>%
+  mutate(last_rssi_1 = lag(rssi, n = 1),
+         last_rssi_2 = lag(rssi, n = 2),
+         last_rssi_3 = lag(rssi, n = 3),
+         last_rssi_4 = lag(rssi, n = 4),
+         last_rssi_5 = lag(rssi, n = 5),
+         last_rssi_6 = lag(rssi, n = 6),
+         last_rssi_7 = lag(rssi, n = 7),
+         last_rssi_8 = lag(rssi, n = 8),
+         last_rssi_9 = lag(rssi, n = 9),
+         last_rssi_10 = lag(rssi, n = 10))
+
+data <- na.omit(data)
+
+data$resultado <- apply(data[cols], 1, function(row) {
+  if (sum(duplicated(row)) >= melhor_repetição) {
+    return(1)
+  } else {
+    return(0)
+  }
+})
+
+data <- data %>%
+  select(rssi, last_rssi_1, last_rssi_2, last_rssi_3, last_rssi_4, last_rssi_5,
+         last_rssi_6, last_rssi_7, last_rssi_8, last_rssi_9, last_rssi_10, resultado)
+
+data$rssi <- (data$rssi - min_rssi) / (max_rssi - min_rssi)
+last_rssi_columns <- paste0("last_rssi_", 1:10)
+data <- data %>%   mutate(across(all_of(last_rssi_columns), ~ (. - (min_rssi)) / ((max_rssi) - (min_rssi))))
 
 prever_novo <- function(novo_dado) {
-  # Fazer previsões com base no modelo K-NN
-  previsoes <- class::knn(train = train_sem_resposta, test = novo_dado, cl = train$nivel_invasao, k = 3)
+  previsoes <- class::knn(train = train_model, test = novo_dado, cl = result, k = melhor_k)
   return(previsoes)
 }
 
-previsoes = prever_novo(novo_dado)
+previsoes = prever_novo(data[1,])
+
+print("Valor Previsto:")
 print(previsoes)

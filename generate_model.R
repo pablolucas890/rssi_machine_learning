@@ -36,7 +36,7 @@ data_nivel_0 <- data %>%
 count_repeated_sequences <- function(coluna, repeticao) {
   contador_total <- 0
   contador_sequencia <- 1
-  
+
   for (i in 2:length(coluna)) {
     if (coluna[i] == coluna[i - 1]) {
       contador_sequencia <- contador_sequencia + 1
@@ -47,7 +47,7 @@ count_repeated_sequences <- function(coluna, repeticao) {
       contador_sequencia <- 1
     }
   }
-  
+
   return(contador_total)
 }
 
@@ -57,11 +57,11 @@ porcentagem_nivel_0 <- c()
 
 # Calculando a diferença de repetição entre os niveis de invasão
 for (repeticao in repeticoes) {
-  
+
   # Contar sequências repetidas
   contador_total_nivel_1 <- count_repeated_sequences(data_nivel_1$rssi, repeticao)
   contador_total_nivel_0 <- count_repeated_sequences(data_nivel_0$rssi, repeticao)
-  
+
   # Calcula porcentagem e relação
   porcentagem_1 <- (contador_total_nivel_1 / qtd_nivel_1) * 100
   porcentagem_0 <- (contador_total_nivel_0 / qtd_nivel_0) * 100
@@ -123,19 +123,6 @@ data_nivel_0$resultado <- apply(data_nivel_0[cols], 1, function(row) {
 # Adicionar as linhas de data_nivel_1 ao final de data_nivel_0
 data <- rbind(data_nivel_1, data_nivel_0)
 
-# Criar o gráfico usando ggplot2
-nivel_invasao_labels <- c("Sem Invasão", "Invasão")
-resultado_labels <- c("Invasão", "Sem Invasão")
-
-# Calcular porcentagens ajustadas
-percentage_data <- data %>%
-  group_by(nivel_invasao, resultado) %>%
-  summarise(count = n()) %>%
-  mutate(percentage = count / sum(count) * 100)
-temp <- percentage_data[1, "count"]
-percentage_data[1, "count"] <- percentage_data[2, "count"]
-percentage_data[2, "count"] <- temp
-
 #--------------------------------------------------------------
 #Passo 4 -  EXPLORAÇÃO DE DADOS PARA ML
 #--------------------------------------------------------------
@@ -153,6 +140,7 @@ data <- data %>%
   mutate(across(all_of(last_rssi_columns), ~ (. - min(.)) / (max(.) - min(.))))
 
 # Eliminação de atributos não necessários
+data$distancia <- NULL
 data$amostragem <- NULL
 data$tempo <- NULL
 
@@ -188,11 +176,11 @@ for(j in 1:10){
   #Indução do Modelo
   model <- class::knn(train = train_sem_resposta, test = test_sem_resposta, cl = train$nivel_invasao, k = k_knn)
   predsVal <- as.numeric(as.character(model))
-  
+
   #Criação da Matriz de Confusão
   cm1 <- MLmetrics::ConfusionMatrix(y_pred = predsVal, y_true = test$nivel_invasao)
   matriz = as.data.frame.matrix(cm1)
-  
+
   #Cálculo da acurácia
   somatorio_diagonal_principal = sum(diag(cm1))
   somatorio_matriz = sum(cm1)
@@ -212,7 +200,7 @@ print(melhor_acuracia)
 print("Melhor K KNN:")
 print(melhor_k)
 
-write.csv(train, file = "train.csv", row.names = FALSE)
-write.csv(train_sem_resposta, file = "train_sem_resposta.csv", row.names = FALSE)
+write.csv(train$nivel_invasao, file = "result.csv", row.names = FALSE)
+write.csv(train_sem_resposta, file = "train_model.csv", row.names = FALSE)
 
 #######################################################################################
