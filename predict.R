@@ -1,7 +1,9 @@
+Sys.setlocale("LC_ALL", "en_US.UTF-8")
+
 library(readr)
 library(dplyr)
 
-melhor_repetição <- 4
+melhor_repeticao <- 4
 melhor_k <- 3
 min_rssi <- -81
 max_rssi <- -30
@@ -28,7 +30,7 @@ data <- data %>%
 data <- na.omit(data)
 
 data$resultado <- apply(data[cols], 1, function(row) {
-  if (sum(duplicated(row)) >= melhor_repetição) {
+  if (sum(duplicated(row)) >= melhor_repeticao) {
     return(1)
   } else {
     return(0)

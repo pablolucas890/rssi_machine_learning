@@ -24,7 +24,7 @@ def on_disconnect(client, device, rc):
 
 def on_message(client, device, msg):
     message = msg.payload.decode('utf-8').lower()
-    print("Novo dado: " + message)
+    # print("Novo dado: " + message)
     with open('real_time.csv', 'r', newline='') as arquivo_csv:
         leitor_csv = csv.reader(arquivo_csv)
         linhas = list(leitor_csv)
